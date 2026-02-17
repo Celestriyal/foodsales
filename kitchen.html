@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oderwall - Kitchen Display</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="kitchen-view">
+    <div class="kitchen-container">
+        <header class="kitchen-header">
+            <div class="logo">
+                <i class="fa-solid fa-fire-burner"></i>
+                <h1>Kitchen Display</h1>
+            </div>
+            <div id="clock" class="clock">00:00:00</div>
+        </header>
+
+        <main class="kitchen-orders-section">
+            <div id="kitchen-orders-grid" class="kitchen-orders-grid">
+                <!-- Orders injected here -->
+                <div class="no-orders-msg">
+                    <i class="fa-solid fa-bell-concierge"></i>
+                    <p>No orders to cook.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="kitchen.js"></script>
+</body>
+
+</html>

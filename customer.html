@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oderwall - Customer Display</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="customer-view">
+    <div class="customer-container">
+        <header class="customer-header">
+            <div class="logo">
+                <i class="fa-solid fa-utensils"></i>
+                <h1>Oderwall</h1>
+            </div>
+            <h2>Please Pay & Pick Up</h2>
+        </header>
+
+        <main class="customer-orders-section">
+            <div id="customer-orders-grid" class="customer-orders-grid">
+                <!-- Orders injected here -->
+                <div class="no-orders-msg">
+                    <i class="fa-solid fa-mug-hot"></i>
+                    <p>Waiting for new orders...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="customer.js"></script>
+</body>
+
+</html>
