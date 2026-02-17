@@ -16,6 +16,12 @@ function init() {
             renderOrders();
         }
     });
+
+    // Poll for orders every 2 seconds (Fallback for storage event issues)
+    setInterval(() => {
+        loadOrders();
+        renderOrders();
+    }, 2000);
 }
 
 function loadOrders() {

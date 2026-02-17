@@ -25,6 +25,12 @@ function startClock() {
         const now = new Date();
         clockElement.textContent = now.toLocaleTimeString();
     }, 1000);
+
+    // Poll for orders every 2 seconds (Fallback for storage event issues)
+    setInterval(() => {
+        loadOrders();
+        renderOrders();
+    }, 2000);
 }
 
 function loadOrders() {
