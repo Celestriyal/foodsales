@@ -24,9 +24,16 @@
                 <i class="fa-solid fa-search"></i>
                 <input type="text" id="order-search" placeholder="Search Order #...">
             </div>
-            <button id="settings-btn" class="icon-btn" title="Settings">
-                <i class="fa-solid fa-cog"></i>
-            </button>
+            <div class="header-controls" style="display:flex; gap:10px;">
+                <button id="pending-change-btn" class="icon-btn" title="Pending Changes" style="position:relative;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span id="pending-change-badge" class="badge"
+                        style="display:none; position:absolute; top:-5px; right:-5px; font-size:0.7rem; padding:0.2rem 0.5rem; background: #ef4444;">0</span>
+                </button>
+                <button id="settings-btn" class="icon-btn" title="Settings">
+                    <i class="fa-solid fa-cog"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -102,6 +109,22 @@
         </main>
     </div>
 
+    <!-- Pending Changes Modal -->
+    <div id="pending-change-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Pending Change Orders</h2>
+                <button id="close-pending-change-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="pending-change-list" class="settings-list" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Items injected here -->
+                    <div class="empty-msg">No pending changes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
@@ -162,6 +185,18 @@
                 <div class="change-calc-row">
                     <label>Change to Return:</label>
                     <span id="calc-change" class="calc-value highlight">₹0</span>
+                </div>
+
+                <!-- New Option: Give Change Later -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" id="give-later-check" onchange="toggleGiveLater()">
+                        <span style="font-weight:600; font-size: 1rem;">Give Change Later?</span>
+                    </label>
+                    <div id="give-later-input-container" style="display:none; margin-top:0.5rem;">
+                        <input type="number" id="give-later-amount" placeholder="Pending Amount"
+                            style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:0.5rem; font-size: 1.2rem;">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

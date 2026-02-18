@@ -45,6 +45,16 @@ const calcTotal = document.getElementById('calc-total');
 const calcGiven = document.getElementById('calc-given');
 const calcChange = document.getElementById('calc-change');
 const confirmCashBtn = document.getElementById('confirm-cash-btn');
+const giveLaterCheck = document.getElementById('give-later-check');
+const giveLaterInputContainer = document.getElementById('give-later-input-container');
+const giveLaterAmount = document.getElementById('give-later-amount');
+
+// Pending Changes DOM
+const pendingChangeBtn = document.getElementById('pending-change-btn');
+const pendingChangeBadge = document.getElementById('pending-change-badge');
+const pendingChangeModal = document.getElementById('pending-change-modal');
+const closePendingChangeBtn = document.getElementById('close-pending-change-btn');
+const pendingChangeList = document.getElementById('pending-change-list');
 
 let currentOrderIdForPayment = null;
 
@@ -56,6 +66,7 @@ function init() {
     updateCartUI();
     renderPendingOrders();
     renderOngoingOrders();
+    renderPendingChangeList(); // Init badge
     setupEventListeners();
 
     // Listen for storage updates (kitchen sync)
@@ -64,6 +75,7 @@ function init() {
             loadOrders();
             renderPendingOrders();
             renderOngoingOrders();
+            renderPendingChangeList(); // Update badge
         }
     });
 }
@@ -300,17 +312,57 @@ function setupEventListeners() {
         if (e.target === paymentModal) paymentModal.classList.add('hidden');
     });
 
+    // Pending Change Modal Listeners
+    pendingChangeBtn.addEventListener('click', () => {
+        renderPendingChangeList();
+        pendingChangeModal.classList.remove('hidden');
+    });
+    closePendingChangeBtn.addEventListener('click', () => pendingChangeModal.classList.add('hidden'));
+    pendingChangeModal.addEventListener('click', (e) => {
+        if (e.target === pendingChangeModal) pendingChangeModal.classList.add('hidden');
+    });
+
     // Change Modal Listeners
-    closeChangeBtn.addEventListener('click', () => changeModal.classList.add('hidden'));
+    closeChangeBtn.addEventListener('click', () => {
+        changeModal.classList.add('hidden');
+        giveLaterCheck.checked = false; // Reset
+        giveLaterInputContainer.style.display = 'none';
+    });
     changeModal.addEventListener('click', (e) => {
         if (e.target === changeModal) changeModal.classList.add('hidden');
     });
 
     confirmCashBtn.addEventListener('click', () => {
         if (currentOrderIdForPayment) {
+            // Check for Pending Change
+            if (giveLaterCheck.checked) {
+                const pendingAmt = parseFloat(giveLaterAmount.value);
+                if (isNaN(pendingAmt) || pendingAmt <= 0) {
+                    alert('Please enter a valid pending change amount or uncheck "Give Change Later".');
+                    return;
+                }
+
+                // Find order and update BEFORE sending to kitchen?
+                // Actually sendToKitchen toggles status. We need to attach data to order first.
+                // But orders are in 'orders' array. currentOrderIdForPayment matches.
+                const orderIdx = orders.findIndex(o => o.id === currentOrderIdForPayment);
+                if (orderIdx > -1) {
+                    orders[orderIdx].pendingChange = true;
+                    orders[orderIdx].pendingChangeAmount = pendingAmt;
+                    saveOrders();
+                }
+            }
+
             sendToKitchen(currentOrderIdForPayment); // For cash, this finalizes payment
+
+            // Reset Modal state
             changeModal.classList.add('hidden');
+            giveLaterCheck.checked = false;
+            giveLaterInputContainer.style.display = 'none';
+            giveLaterAmount.value = '';
+
             currentOrderIdForPayment = null;
+            renderPendingChangeList(); // Update list
         }
     });
 }
@@ -328,7 +380,7 @@ window.confirmPaymentMethod = function (method) {
     const total = cartTotalElement.textContent.replace('₹', '');
     const newOrder = {
         id: Date.now(),
-        items: [...cart],
+        items: cart.map(item => ({ ...item, status: 'pending' })),
         total: total,
         status: 'pending',
         paymentMethod: method, // 'cash' or 'gpay'
@@ -403,6 +455,15 @@ function renderOngoingOrders(searchTerm = '') {
     ongoingOrdersList.innerHTML = '';
     const ongoing = orders.filter(o => o.status === 'cooking' || o.status === 'ready');
 
+    // Sort: Ready first, then by ID (newest first? or oldest first?)
+    // Usually Kitchen FIFO: Oldest first. 
+    // But User wants Ready on top.
+    ongoing.sort((a, b) => {
+        if (a.status === 'ready' && b.status !== 'ready') return -1;
+        if (a.status !== 'ready' && b.status === 'ready') return 1;
+        return a.id - b.id; // Oldest first for cooking
+    });
+
     if (ongoingCount) ongoingCount.textContent = ongoing.length;
 
     const filtered = ongoing.filter(o =>
@@ -423,10 +484,18 @@ function renderOngoingOrders(searchTerm = '') {
             row.style.background = '#ecfdf5';
         }
 
-        const itemsSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+        const itemsSummary = order.items.map(i => {
+            // Check if item is ready
+            const statusIcon = (i.status === 'ready') ? '<i class="fa-solid fa-check" style="color:#10b981"></i>' : '';
+            const statusStyle = (i.status === 'ready') ? 'color:#059669; text-decoration:line-through; opacity:0.7' : '';
+            return `<span style="${statusStyle}">${i.quantity}x ${i.name} ${statusIcon}</span>`;
+        }).join('<br>'); // Use break for list logic? Or comma. User asked for "show individual items dispatched"
 
         // Status Badge
         let statusBadge = `<span class="status-badge status-cooking">Cooking...</span>`;
+        if (order.items.some(i => i.status === 'ready') && order.status !== 'ready') {
+            statusBadge = `<span class="status-badge status-cooking" style="background:#fef3c7; color:#d97706">Partially Ready</span>`;
+        }
         let actionBtn = '';
 
         if (order.status === 'ready') {
@@ -440,7 +509,7 @@ function renderOngoingOrders(searchTerm = '') {
                     <span style="font-weight:700">Order #${order.id.toString().slice(-4)}</span>
                     ${statusBadge}
                 </div>
-                <div style="font-size:0.9rem; color: #666; margin-top:0.5rem">${itemsSummary}</div>
+                <div style="font-size:0.9rem; color: #666; margin-top:0.5rem; line-height:1.4">${itemsSummary}</div>
             </div>
             ${actionBtn}
         `;
@@ -452,6 +521,11 @@ window.sendToKitchen = function (id) {
     const orderIndex = orders.findIndex(o => o.id === id);
     if (orderIndex > -1) {
         orders[orderIndex].status = 'cooking';
+        // Set all items to cooking
+        orders[orderIndex].items.forEach(item => {
+            item.status = 'cooking';
+        });
+
         // Auto-save to CSV if connected
         if (dbFileHandle) {
             saveOrderToCSV(orders[orderIndex]);
@@ -485,10 +559,23 @@ window.openChangeCalculator = function (id, total) {
 window.calculateChange = function () {
     const total = parseFloat(calcTotal.textContent.replace('₹', ''));
     const given = parseFloat(calcGiven.value);
+    const isGiveLater = giveLaterCheck.checked;
 
     if (!isNaN(given)) {
         const change = given - total;
         calcChange.textContent = `₹${change.toFixed(2)}`;
+
+        // Logic: 
+        // 1. Normal: Change >= 0 -> enable
+        // 2. Give Later: Change can be anything (usually negative/partial), 
+        //    but we check if a valid pending amount is entered if needed?
+        //    Actually, "Give Change Later" usually means "I have change to return but can't give now"
+        //    OR "Customer didn't give enough, pay later?" -> User said "give change later" implies creating a pending change record.
+
+        // Use case: Bill 110. Customer gives 500. Change 390. Shop has no change.
+        // Shop checks "Give Change Later". Enters 390 (or less?). 
+        // Let's assume the entered "Pending Amount" is what is documented as owed.
+
         if (change >= 0) {
             calcChange.classList.add('highlight');
             confirmCashBtn.disabled = false;
@@ -498,8 +585,98 @@ window.calculateChange = function () {
             confirmCashBtn.disabled = true;
             confirmCashBtn.style.opacity = '0.5';
         }
+
+        if (isGiveLater) {
+            // If giving change later, we allow proceeding even if we haven't given change physically.
+            // But we usually still need 'given' amount to be >= total to mark as "Paid" (with change pending).
+            // Wait, user said "give change later". So technically the order is PAID, but *we* owe *them*.
+            // So 'given' must be >= 'total'.
+
+            if (change >= 0) {
+                confirmCashBtn.disabled = false;
+                confirmCashBtn.style.opacity = '1';
+                // Auto-fill pending amount if empty? 
+                if (giveLaterAmount.value === '') {
+                    giveLaterAmount.value = change;
+                }
+            }
+        }
+
     } else {
         calcChange.textContent = '₹0';
+        confirmCashBtn.disabled = true;
+        confirmCashBtn.style.opacity = '0.5';
+    }
+};
+
+window.toggleGiveLater = function () {
+    if (giveLaterCheck.checked) {
+        giveLaterInputContainer.style.display = 'block';
+        // Trigger calc to auto-fill
+        calculateChange();
+    } else {
+        giveLaterInputContainer.style.display = 'none';
+        giveLaterAmount.value = '';
+    }
+};
+
+// Pending Change List Logic
+function renderPendingChangeList() {
+    if (!pendingChangeList) return;
+    pendingChangeList.innerHTML = '';
+
+    const pendingChangeOrders = orders.filter(o => o.pendingChange === true);
+
+    // Update Badge
+    if (pendingChangeBadge) {
+        if (pendingChangeOrders.length > 0) {
+            pendingChangeBadge.textContent = pendingChangeOrders.length;
+            pendingChangeBadge.style.display = 'block';
+        } else {
+            pendingChangeBadge.style.display = 'none';
+        }
+    }
+
+    if (pendingChangeOrders.length === 0) {
+        pendingChangeList.innerHTML = `<div class="empty-msg"><p>No pending changes</p></div>`;
+        return;
+    }
+
+    pendingChangeOrders.forEach(order => {
+        const row = document.createElement('div');
+        row.className = 'setting-item'; // Reuse existing style
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'flex-start';
+        row.style.borderBottom = '1px solid #eee';
+        row.style.padding = '1rem 0';
+
+        const date = new Date(order.timestamp).toLocaleString();
+
+        row.innerHTML = `
+            <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:0.5rem;">
+                <span style="font-weight:bold;">Order #${order.id.toString().slice(-4)}</span>
+                <span style="color:#ef4444; font-weight:bold;">Pending: ₹${order.pendingChangeAmount}</span>
+            </div>
+            <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">
+                ${date}
+            </div>
+            <button class="primary-btn" style="width:100%; padding:0.5rem;" onclick="clearPendingChange(${order.id})">
+                <i class="fa-solid fa-check"></i> Mark as Returned
+            </button>
+        `;
+        pendingChangeList.appendChild(row);
+    });
+}
+
+window.clearPendingChange = function (id) {
+    if (confirm('Are you sure you have returned the change to the customer?')) {
+        const orderIdx = orders.findIndex(o => o.id === id);
+        if (orderIdx > -1) {
+            delete orders[orderIdx].pendingChange;
+            delete orders[orderIdx].pendingChangeAmount;
+            saveOrders();
+            renderPendingChangeList();
+        }
     }
 };
 
