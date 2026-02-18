@@ -1,5 +1,6 @@
 // DOM Elements
 const ordersGrid = document.getElementById('kitchen-orders-grid');
+const summaryGrid = document.getElementById('kitchen-summary-grid');
 const clockElement = document.getElementById('clock');
 
 // State
@@ -9,6 +10,7 @@ let orders = [];
 function init() {
     loadOrders();
     renderOrders();
+    renderSummary(); // Initial render
     startClock();
 
     // Listen for changes
@@ -16,6 +18,7 @@ function init() {
         if (e.key === 'oderwall_orders') {
             loadOrders();
             renderOrders();
+            renderSummary(); // Update summary
         }
     });
 }
@@ -30,6 +33,7 @@ function startClock() {
     setInterval(() => {
         loadOrders();
         renderOrders();
+        renderSummary(); // Update summary
     }, 2000);
 }
 
@@ -44,6 +48,42 @@ function loadOrders() {
 
 function saveOrders() {
     localStorage.setItem('oderwall_orders', JSON.stringify(orders));
+}
+
+function renderSummary() {
+    if (!summaryGrid) return;
+    summaryGrid.innerHTML = '';
+
+    // Filter only cooking orders
+    const cookingOrders = orders.filter(o => o.status === 'cooking');
+
+    if (cookingOrders.length === 0) {
+        summaryGrid.innerHTML = '<div class="summary-empty">No active orders</div>';
+        return;
+    }
+
+    // Aggregate items
+    const itemCounts = {};
+    cookingOrders.forEach(order => {
+        order.items.forEach(item => {
+            if (itemCounts[item.name]) {
+                itemCounts[item.name] += item.quantity;
+            } else {
+                itemCounts[item.name] = item.quantity;
+            }
+        });
+    });
+
+    // Render aggregated items
+    Object.entries(itemCounts).forEach(([name, count]) => {
+        const summaryItem = document.createElement('div');
+        summaryItem.className = 'summary-item';
+        summaryItem.innerHTML = `
+            <span class="summary-qty">${count}</span>
+            <span class="summary-name">${name}</span>
+        `;
+        summaryGrid.appendChild(summaryItem);
+    });
 }
 
 function renderOrders() {
@@ -105,6 +145,7 @@ window.markOrderReady = function (id) {
         orders[orderIndex].status = 'ready';
         saveOrders();
         renderOrders();
+        renderSummary(); // Update summary
     }
 };
 

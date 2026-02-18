@@ -52,10 +52,25 @@ function renderOrders() {
     pendingOrders.forEach(order => {
         const orderCard = document.createElement('div');
         orderCard.className = 'customer-order-card';
-        // Generate a random simple QR placeholder text or logic if needed, 
-        // using FontAwesome qr icon for now as placeholder for the image to come later.
 
         const itemsList = order.items.map(i => `${i.quantity}x ${i.name}`).join('<br>');
+
+        // Check Payment Method
+        let qrSectionContent = '';
+        if (order.paymentMethod === 'cash') {
+            qrSectionContent = `
+                <div class="qr-placeholder" style="font-size: 8rem; color: var(--secondary-color);">
+                    <i class="fa-solid fa-cash-register"></i>
+                </div>
+                <p style="font-size: 1.5rem; font-weight: bold; margin-top: 1rem;">Please Pay at Counter</p>
+            `;
+        } else {
+            // Default to GPay
+            qrSectionContent = `
+                <div id="qrcode-${order.id}" class="qr-placeholder"></div>
+                <p>Scan to Pay</p>
+            `;
+        }
 
         orderCard.innerHTML = `
             <div class="order-header-centered">
@@ -65,9 +80,7 @@ function renderOrders() {
                 ${itemsList}
             </div>
             <div class="qr-code-section">
-                <!-- Unique ID for QR container -->
-                <div id="qrcode-${order.id}" class="qr-placeholder"></div>
-                <p>Scan to Pay</p>
+                ${qrSectionContent}
             </div>
             <div class="order-total-centered">
                 ₹${order.total}
@@ -75,22 +88,24 @@ function renderOrders() {
         `;
         ordersGrid.appendChild(orderCard);
 
-        // Generate QR Code
-        // UPI URL Format
-        // upi://pay?pa=ashfaq072025@okicici&pn=Ashfaq&am=AMT&cu=INR&aid=uGICAgKDXxvXyWA
-        const upiUrl = `upi://pay?pa=ashfaq072025@okicici&pn=Ashfaq&am=${order.total}&cu=INR&aid=uGICAgKDXxvXyWA`;
+        // Generate QR Code only if GPay/Default
+        if (order.paymentMethod !== 'cash') {
+            // Get Configured UPI ID or Default
+            const storedUpiId = localStorage.getItem('oderwall_upi_id');
+            const upiId = storedUpiId && storedUpiId.trim() !== '' ? storedUpiId : 'ashfaq072025@okicici';
 
-        // Render QR
-        const qrContainer = document.getElementById(`qrcode-${order.id}`);
-        if (qrContainer) {
-            new QRCode(qrContainer, {
-                text: upiUrl,
-                width: 200,
-                height: 200,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            const upiUrl = `upi://pay?pa=${upiId}&pn=Oderwall&am=${order.total}&cu=INR`;
+            const qrContainer = document.getElementById(`qrcode-${order.id}`);
+            if (qrContainer) {
+                new QRCode(qrContainer, {
+                    text: upiUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
         }
     });
 }

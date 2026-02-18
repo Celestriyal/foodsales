@@ -573,9 +573,10 @@ main {
 
 /* Customer Display Styles (Global) */
 .customer-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 2rem 4rem;
+    /* More horizontal padding */
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -594,11 +595,13 @@ main {
 
 .customer-orders-grid {
     display: flex;
-    gap: 3rem;
-    justify-content: center;
+    justify-content: space-between;
+    /* Spread items: start, center, end */
     align-items: center;
     flex-wrap: nowrap;
     width: 100%;
+    gap: 2rem;
+    /* Minimum gap */
 }
 
 .customer-order-card {
@@ -795,10 +798,61 @@ body.kitchen-view .kitchen-card-footer {
     color: white;
     border: none;
     border-radius: 0.5rem;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 1rem;
 }
+
+/* Kitchen Summary Styles */
+.kitchen-summary-section {
+    background-color: #374151;
+    /* Dark gray to match cards */
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #4b5563;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+.kitchen-summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    /* Center items */
+    align-items: center;
+}
+
+.summary-item {
+    background-color: #111827;
+    /* Darker bg for items */
+    border: 1px solid #fbbf24;
+    /* Amber border */
+    color: #fbbf24;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    /* Rounded badge style */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.summary-qty {
+    background-color: #fbbf24;
+    color: #111827;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+}
+
+.summary-empty {
+    color: #6b7280;
+    font-style: italic;
+}
+
+
 
 .ready-btn:hover {
     background-color: #059669;
@@ -923,4 +977,98 @@ body.kitchen-view .kitchen-card-footer {
 body.customer-view .no-orders-msg i {
     opacity: 0.5;
     color: white;
+}
+
+/* Payment Modal Styles */
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-btn {
+    padding: 1.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-family: var(--font-family);
+}
+
+.payment-btn:hover {
+    border-color: var(--primary-color);
+    background-color: #eef2ff;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.payment-btn i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+/* Change Calculator Styles */
+.change-calc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+.change-calc-row label {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.calc-value {
+    font-weight: 800;
+    font-size: 1.5rem;
+}
+
+.change-calc-row input {
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1.5rem;
+    width: 150px;
+    text-align: right;
+    font-weight: 700;
+    font-family: var(--font-family);
+}
+
+.change-calc-row input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.calc-value.highlight {
+    color: var(--secondary-color);
+    font-size: 2rem;
+}
+
+/* Pay Button for Pending Orders */
+.pay-btn {
+    background-color: #10b981;
+    /* Green */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pay-btn:hover {
+    background-color: #059669;
 }

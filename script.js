@@ -1,12 +1,13 @@
-// Default Menu Data
 const defaultMenu = [
-    { id: 1, name: 'Veg atho', price: 120, category: 'Main' },
-    { id: 2, name: 'Egg atho', price: 150, category: 'Main' },
-    { id: 3, name: 'Chicken atho', price: 180, category: 'Main' },
-    { id: 4, name: 'Banga', price: 100, category: 'Main' },
-    { id: 5, name: 'Banana stem soup', price: 60, category: 'Soup' },
-    { id: 6, name: 'Paneer momos', price: 140, category: 'Starter' },
-    { id: 7, name: 'Chicken momos', price: 160, category: 'Starter' }
+    { id: 1, name: 'Veg Atho', price: 110, category: 'Main' },
+    { id: 2, name: 'Egg Atho', price: 130, category: 'Main' },
+    { id: 3, name: 'Chicken Atho', price: 150, category: 'Main' },
+    { id: 4, name: 'Veg Banga', price: 100, category: 'Main' },
+    { id: 5, name: 'Egg Banga', price: 110, category: 'Main' },
+    { id: 6, name: 'Chicken Banga', price: 130, category: 'Main' },
+    { id: 7, name: 'Paneer Momos', price: 100, category: 'Starter' },
+    { id: 8, name: 'Chicken Momos', price: 120, category: 'Starter' },
+    { id: 9, name: 'Banana stem soup', price: 60, category: 'Soup' }
 ];
 
 // State
@@ -34,6 +35,18 @@ const pendingCount = document.getElementById('pending-count');
 const ongoingOrdersList = document.getElementById('ongoing-orders-list');
 const ongoingCount = document.getElementById('ongoing-count');
 const searchInput = document.getElementById('order-search');
+
+// Payment Modals DOM
+const paymentModal = document.getElementById('payment-modal');
+const closePaymentBtn = document.getElementById('close-payment-btn');
+const changeModal = document.getElementById('change-modal');
+const closeChangeBtn = document.getElementById('close-change-btn');
+const calcTotal = document.getElementById('calc-total');
+const calcGiven = document.getElementById('calc-given');
+const calcChange = document.getElementById('calc-change');
+const confirmCashBtn = document.getElementById('confirm-cash-btn');
+
+let currentOrderIdForPayment = null;
 
 // Initialization
 function init() {
@@ -195,6 +208,18 @@ function closeSettings() {
 
 function renderSettingsList() {
     settingsList.innerHTML = '';
+
+    // UPI ID Setting
+    const upiRow = document.createElement('div');
+    upiRow.className = 'setting-item';
+    const currentUpi = localStorage.getItem('oderwall_upi_id') || '';
+    upiRow.innerHTML = `
+        <label>UPI ID (for QR)</label>
+        <input type="text" id="setting-upi-id" value="${currentUpi}" placeholder="ashfaq072025@okicici" style="width: 250px; text-align: left;">
+    `;
+    settingsList.appendChild(upiRow);
+
+    // Menu Prices
     menu.forEach(item => {
         const row = document.createElement('div');
         row.className = 'setting-item';
@@ -207,6 +232,12 @@ function renderSettingsList() {
 }
 
 function saveSettings() {
+    // Save UPI ID
+    const upiInput = document.getElementById('setting-upi-id');
+    if (upiInput) {
+        localStorage.setItem('oderwall_upi_id', upiInput.value.trim());
+    }
+
     let hasChanges = false;
     menu.forEach(item => {
         const input = document.getElementById(`price-${item.id}`);
@@ -262,6 +293,26 @@ function setupEventListeners() {
             renderOngoingOrders(term);
         });
     }
+
+    // Payment Modal Listeners
+    closePaymentBtn.addEventListener('click', () => paymentModal.classList.add('hidden'));
+    paymentModal.addEventListener('click', (e) => {
+        if (e.target === paymentModal) paymentModal.classList.add('hidden');
+    });
+
+    // Change Modal Listeners
+    closeChangeBtn.addEventListener('click', () => changeModal.classList.add('hidden'));
+    changeModal.addEventListener('click', (e) => {
+        if (e.target === changeModal) changeModal.classList.add('hidden');
+    });
+
+    confirmCashBtn.addEventListener('click', () => {
+        if (currentOrderIdForPayment) {
+            sendToKitchen(currentOrderIdForPayment); // For cash, this finalizes payment
+            changeModal.classList.add('hidden');
+            currentOrderIdForPayment = null;
+        }
+    });
 }
 
 function placeOrder() {
@@ -269,13 +320,18 @@ function placeOrder() {
         alert('Your cart is empty!');
         return;
     }
+    // Open Payment Method Modal
+    paymentModal.classList.remove('hidden');
+}
 
+window.confirmPaymentMethod = function (method) {
     const total = cartTotalElement.textContent.replace('₹', '');
     const newOrder = {
         id: Date.now(),
         items: [...cart],
         total: total,
         status: 'pending',
+        paymentMethod: method, // 'cash' or 'gpay'
         timestamp: new Date().toISOString()
     };
 
@@ -286,8 +342,11 @@ function placeOrder() {
     updateCartUI();
     renderPendingOrders();
     renderOngoingOrders();
-    alert(`Order #${newOrder.id.toString().slice(-4)} placed successfully!`);
-}
+
+    paymentModal.classList.add('hidden');
+    // feedback to user
+    // Alerts removed as per user request
+};
 
 // Pending Orders Logic (Created -> Paid)
 function renderPendingOrders(searchTerm = '') {
@@ -316,12 +375,24 @@ function renderPendingOrders(searchTerm = '') {
 
         row.innerHTML = `
             <div class="order-list-info">
-                <div style="font-weight:700">Order #${order.id.toString().slice(-4)}</div>
+                <div style="font-weight:700">Order #${order.id.toString().slice(-4)} <span style="font-size:0.8em; font-weight:normal; color:#666">(${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY'})</span></div>
                 <div style="font-size:0.9rem; color: #666;">${itemsSummary}</div>
                 <div style="font-weight:600; color: var(--secondary-color);">Total: ₹${order.total}</div>
             </div>
-            <button class="mark-done-btn" onclick="sendToKitchen(${order.id})">Send to Kitchen <i class="fa-solid fa-fire-burner"></i></button>
         `;
+
+        if (order.paymentMethod === 'cash') {
+            row.innerHTML += `
+                <button class="pay-btn" onclick="openChangeCalculator(${order.id}, ${order.total})">
+                    Pay / Change <i class="fa-solid fa-calculator"></i>
+                </button>
+            `;
+        } else {
+            // Default GPay or undefined (assume GPay/standard)
+            row.innerHTML += `
+                <button class="mark-done-btn" onclick="sendToKitchen(${order.id})">Send to Kitchen <i class="fa-solid fa-fire-burner"></i></button>
+            `;
+        }
         pendingOrdersList.appendChild(row);
     });
 }
@@ -400,6 +471,38 @@ window.completeOrder = function (id) {
     }
 };
 
+// Change Calculator Functions
+window.openChangeCalculator = function (id, total) {
+    currentOrderIdForPayment = id;
+    calcTotal.textContent = `₹${total}`;
+    calcGiven.value = '';
+    calcChange.textContent = '₹0';
+    calcChange.classList.remove('highlight');
+    changeModal.classList.remove('hidden');
+    setTimeout(() => calcGiven.focus(), 100);
+};
+
+window.calculateChange = function () {
+    const total = parseFloat(calcTotal.textContent.replace('₹', ''));
+    const given = parseFloat(calcGiven.value);
+
+    if (!isNaN(given)) {
+        const change = given - total;
+        calcChange.textContent = `₹${change.toFixed(2)}`;
+        if (change >= 0) {
+            calcChange.classList.add('highlight');
+            confirmCashBtn.disabled = false;
+            confirmCashBtn.style.opacity = '1';
+        } else {
+            calcChange.classList.remove('highlight');
+            confirmCashBtn.disabled = true;
+            confirmCashBtn.style.opacity = '0.5';
+        }
+    } else {
+        calcChange.textContent = '₹0';
+    }
+};
+
 // Export to CSV Function
 function exportToCSV() {
     if (orders.length === 0) {
@@ -408,7 +511,7 @@ function exportToCSV() {
     }
 
     // Headers
-    let csvContent = "Order No,Ordered Menu,Price,Paid?,Timestamp\n";
+    let csvContent = "Order No,Ordered Menu,Price,Payment Method,Paid?,Timestamp\n";
 
     orders.forEach(order => {
         // Format Items: "2x Burger | 1x Coke"
@@ -428,9 +531,10 @@ function exportToCSV() {
         const escapedMenu = `"${menuItems}"`;
 
         const row = [
-            order.id,
+            order.id.toString().slice(-4), // Fix: Only last 4 digits
             escapedMenu,
             price,
+            order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY',
             isPaid,
             `"${date}"`
         ].join(",");
@@ -450,7 +554,6 @@ function exportToCSV() {
     document.body.removeChild(link);
 }
 
-// Auto-Save Functions
 // Auto-Save Functions
 async function connectToDatabase() {
     console.log("Connect to Database clicked");
@@ -494,7 +597,7 @@ async function saveOrderToCSV(order) {
 
         // Add header if empty file
         if (size === 0) {
-            dataToWrite += "Order No,Ordered Menu,Price,Paid?,Timestamp\n";
+            dataToWrite += "Order No,Ordered Menu,Price,Payment Method,Paid?,Timestamp\n";
         }
 
         await writable.seek(size);
@@ -504,9 +607,10 @@ async function saveOrderToCSV(order) {
         const date = new Date().toLocaleString();
 
         const row = [
-            order.id,
+            order.id.toString().slice(-4), // Fix: Only last 4 digits
             `"${menuItems}"`, // Escape items
             order.total,
+            order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY',
             "Yes", // Paid
             `"${date}"`
         ].join(",") + "\n";

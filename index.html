@@ -123,6 +123,53 @@
         </div>
     </div>
 
+    <!-- Payment Method Modal -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Payment Method</h2>
+                <button id="close-payment-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="payment-options">
+                    <button class="payment-btn" onclick="confirmPaymentMethod('gpay')">
+                        <i class="fa-brands fa-google-pay"></i> GPay / UPI
+                    </button>
+                    <button class="payment-btn" onclick="confirmPaymentMethod('cash')">
+                        <i class="fa-solid fa-money-bill-wave"></i> Cash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Calculator Modal -->
+    <div id="change-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cash Payment</h2>
+                <button id="close-change-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="change-calc-row">
+                    <label>Total Amount:</label>
+                    <span id="calc-total" class="calc-value">₹0</span>
+                </div>
+                <div class="change-calc-row">
+                    <label>Amount Given:</label>
+                    <input type="number" id="calc-given" placeholder="Enter Amount" oninput="calculateChange()">
+                </div>
+                <div class="change-calc-row">
+                    <label>Change to Return:</label>
+                    <span id="calc-change" class="calc-value highlight">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-cash-btn" class="primary-btn">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 
