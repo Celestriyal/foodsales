@@ -1,4 +1,4 @@
-import { db, firestore, ref, set, update, onValue, remove, collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from './firebase-config.js';
+const socket = io();
 
 const MENU_VERSION = '1.1'; // Increment this to force menu update for users
 
@@ -72,23 +72,13 @@ let currentOrderIdForPayment = null;
 // Initialization
 function init() {
     loadMenu();
-    // loadOrders(); // Removed: Handled by Firebase onValue
     renderMenu();
     updateCartUI();
-    // renderPendingOrders(); // Will be triggered by Firebase callback
-    // renderOngoingOrders();
-    // renderPendingChangeList(); 
     setupEventListeners();
 
-    // Firebase Listener
-    const ordersRef = ref(db, 'orders');
-    onValue(ordersRef, (snapshot) => {
-        const data = snapshot.val();
-        // Firebase converts arrays to objects ({0: ..., 1: ...}), so we must normalize
-        orders = data ? Object.values(data).map(order => ({
-            ...order,
-            items: order.items ? Object.values(order.items) : []
-        })) : [];
+    // Socket.io Listener
+    socket.on('update-orders', (data) => {
+        orders = data;
         renderPendingOrders();
         renderOngoingOrders();
         renderPendingChangeList();
@@ -120,15 +110,10 @@ function loadOrders() {
     // Legacy support or placeholder
 }
 
-// Modified saveOrders to sync with Firebase
+// Modified saveOrders to sync with Server
 function saveOrders() {
-    // Convert array to object keyed by ID for direct addressing if needed,
-    // but simple 'orders' object with IDs as keys is easiest.
-    const updates = {};
-    orders.forEach(order => {
-        updates[order.id] = order;
-    });
-    set(ref(db, 'orders'), updates);
+    // This is a fallback, but ideally we emit specific events.
+    // If used, be careful.
 }
 
 function saveMenu() {
@@ -437,7 +422,7 @@ function setupEventListeners() {
                 if (orderIdx > -1) {
                     orders[orderIdx].pendingChange = true;
                     orders[orderIdx].pendingChangeAmount = pendingAmt;
-                    saveOrders();
+                    socket.emit('update-order', orders[orderIdx]);
                 }
             }
 
@@ -485,24 +470,12 @@ window.confirmPaymentMethod = function (method) {
         timestamp: new Date().toISOString()
     };
 
-    // Save to Firebase RTDB
-    // We use update with specific ID to avoid replacing everything if we were strict,
-    // but here we use the orders array logic from before.
-    // Ideally: update(ref(db), { ['orders/' + newOrder.id]: newOrder });
-    // But let's stick to the current flow: orders.push -> saveOrders logic.
+    // Save to Server
     orders.push(newOrder);
-
-    // Use proper update to add just this order
-    const updates = {};
-    updates['orders/' + newOrder.id] = newOrder;
-    update(ref(db), updates).catch((error) => {
-        alert("Database Error: " + error.message + "\n\nMake sure your Rules are set to true!");
-        console.error("Firebase Write Error:", error);
-    });
+    socket.emit('new-order', newOrder);
 
     cart = [];
     updateCartUI();
-    // render... processes via listener
     paymentModal.classList.add('hidden');
 
     if (method === 'cash') {
@@ -516,33 +489,18 @@ window.confirmPaymentMethod = function (method) {
 window.sendToKitchen = function (id) {
     const orderIndex = orders.findIndex(o => o.id === id);
     if (orderIndex > -1) {
-        // Update via Firebase directly
-        const updates = {};
-        updates[`orders/${id}/status`] = 'cooking';
-        orders[orderIndex].items.forEach((item, idx) => {
-            updates[`orders/${id}/items/${idx}/status`] = 'cooking';
-        });
-        update(ref(db), updates);
+        orders[orderIndex].status = 'cooking';
+        orders[orderIndex].items.forEach(item => item.status = 'cooking');
+
+        socket.emit('update-order', orders[orderIndex]);
     }
 };
 
 window.completeOrder = function (id) {
     const order = orders.find(o => o.id === id);
     if (order) {
-        if (confirm('Mark order as completed and move to History?')) {
-            // 1. Add to Firestore
-            order.status = 'completed';
-            order.completedAt = serverTimestamp();
-
-            addDoc(collection(firestore, 'order_history'), order)
-                .then(() => {
-                    // 2. Remove from Realtime DB
-                    remove(ref(db, 'orders/' + id));
-                })
-                .catch((err) => {
-                    console.error("Error moving to history: ", err);
-                    alert("Failed to save to history. Check console.");
-                });
+        if (confirm('Mark order as completed?')) {
+            socket.emit('delete-order', id);
         }
     }
 };
@@ -553,49 +511,9 @@ function openHistory() {
     renderHistory();
 }
 
+// History Stub for Offline
 async function renderHistory() {
-    historyList.innerHTML = '<div class="empty-msg">Loading...</div>';
-
-    try {
-        const q = query(collection(firestore, 'order_history'), orderBy('completedAt', 'desc'), limit(50));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            historyList.innerHTML = '<div class="empty-msg">No history found.</div>';
-            return;
-        }
-
-        historyList.innerHTML = '';
-        querySnapshot.forEach((doc) => {
-            const order = doc.data();
-            const row = document.createElement('div');
-            row.className = 'setting-item';
-            row.style.flexDirection = 'column';
-            row.style.alignItems = 'flex-start';
-            row.style.borderBottom = '1px solid #eee';
-            row.style.padding = '1rem 0';
-
-            const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : 'N/A';
-            const itemsSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
-
-            row.innerHTML = `
-                <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:0.5rem;">
-                    <span style="font-weight:bold;">Order #${order.id.toString().slice(-4)}</span>
-                    <span style="color:var(--secondary-color); font-weight:bold;">₹${order.total}</span>
-                </div>
-                <div style="font-size:0.9rem; color:#666; margin-bottom:0.5rem;">
-                    ${itemsSummary}
-                </div>
-                <div style="font-size:0.8rem; color:#999;">
-                    ${date} | ${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY'}
-                </div>
-            `;
-            historyList.appendChild(row);
-        });
-    } catch (e) {
-        console.error("Error fetching history:", e);
-        historyList.innerHTML = `<div class="empty-msg" style="color:red">Error loading history: ${e.message}</div>`;
-    }
+    historyList.innerHTML = '<div class="empty-msg">History not available in offline mode.</div>';
 }
 
 
@@ -844,7 +762,8 @@ window.clearPendingChange = function (id) {
         if (orderIdx > -1) {
             delete orders[orderIdx].pendingChange;
             delete orders[orderIdx].pendingChangeAmount;
-            saveOrders();
+
+            socket.emit('update-order', orders[orderIdx]);
             renderPendingChangeList();
         }
     }

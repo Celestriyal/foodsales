@@ -1,4 +1,4 @@
-import { db, ref, onValue, update } from './firebase-config.js';
+const socket = io();
 
 // DOM Elements
 const ordersGrid = document.getElementById('kitchen-orders-grid');
@@ -12,11 +12,9 @@ let orders = [];
 function init() {
     startClock();
 
-    // Firebase Listener
-    const ordersRef = ref(db, 'orders');
-    onValue(ordersRef, (snapshot) => {
-        const data = snapshot.val();
-        orders = data ? Object.values(data) : [];
+    // Socket.io Listener
+    socket.on('update-orders', (data) => {
+        orders = data;
         renderOrders();
         renderSummary();
     });
@@ -234,37 +232,31 @@ window.handleMouseDown = function (e, orderId, itemIndex) {
 
 
 window.markItemReady = function (orderId, itemIndex) {
-    const updates = {};
-    updates[`orders/${orderId}/items/${itemIndex}/status`] = 'ready';
-
     // Check if other items ready?
     // We need current state.
     const order = orders.find(o => o.id === orderId);
     if (order) {
+        order.items[itemIndex].status = 'ready';
         // Optimistic check: if all *other* items are ready (or this is the last one)
         const allOthersReady = order.items.every((item, idx) => idx === itemIndex || item.status === 'ready');
         if (allOthersReady) {
-            updates[`orders/${orderId}/status`] = 'ready';
+            order.status = 'ready';
         }
-    }
 
-    update(ref(db), updates);
+        socket.emit('update-order', order);
+    }
 };
 
 window.markOrderReady = function (id) {
     const order = orders.find(o => o.id === id);
     if (!order) return;
 
-    const updates = {};
-    updates[`orders/${id}/status`] = 'ready';
-
+    order.status = 'ready';
     if (order.items) {
-        order.items.forEach((item, index) => {
-            updates[`orders/${id}/items/${index}/status`] = 'ready';
-        });
+        order.items.forEach(item => item.status = 'ready');
     }
 
-    update(ref(db), updates);
+    socket.emit('update-order', order);
 };
 
 init();

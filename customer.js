@@ -1,4 +1,4 @@
-import { db, ref, onValue } from './firebase-config.js';
+const socket = io();
 
 // DOM Elements
 const ordersGrid = document.getElementById('customer-orders-grid');
@@ -8,11 +8,9 @@ let orders = [];
 
 // Init
 function init() {
-    // Firebase Listener
-    const ordersRef = ref(db, 'orders');
-    onValue(ordersRef, (snapshot) => {
-        const data = snapshot.val();
-        orders = data ? Object.values(data) : [];
+    // Socket.io Listener
+    socket.on('update-orders', (data) => {
+        orders = data;
         renderOrders();
     });
 }

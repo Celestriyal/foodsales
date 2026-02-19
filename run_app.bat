@@ -1,13 +1,17 @@
 @echo off
-echo Starting Oderwall (Static)...
-echo.
-echo Trying to start a local web server...
-echo.
-python -m http.server 8080
-if %errorlevel% neq 0 (
-    echo Python not found. Trying npx...
-    call npx http-server -p 8080
+title Oderwall POS - Local Server
+if not exist node_modules (
+    echo Installing dependencies for the first time...
+    call npm install
 )
 echo.
-echo If the server started, open: http://localhost:8080
+echo ============================
+echo  Oderwall POS Server
+echo ============================
+echo  POS Screen   : http://localhost:8080
+echo  Kitchen Screen: http://localhost:8080/kitchen.html
+echo  Customer Screen: http://localhost:8080/customer.html
+echo ============================
+echo.
+node server.js
 pause
