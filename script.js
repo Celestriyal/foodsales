@@ -497,6 +497,11 @@ window.confirmPaymentMethod = function (method) {
     updateCartUI();
     // render... handled by listener
     paymentModal.classList.add('hidden');
+
+    if (method === 'cash') {
+        // Open Change Modal immediately for this new order
+        openChangeCalculator(newOrder.id, newOrder.total);
+    }
 };
 
 // ... (renderPendingOrders, renderOngoingOrders remain mostly same)
