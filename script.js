@@ -491,11 +491,14 @@ window.confirmPaymentMethod = function (method) {
     // Use proper update to add just this order
     const updates = {};
     updates['orders/' + newOrder.id] = newOrder;
-    update(ref(db), updates);
+    update(ref(db), updates).catch((error) => {
+        alert("Database Error: " + error.message + "\n\nMake sure your Rules are set to true!");
+        console.error("Firebase Write Error:", error);
+    });
 
     cart = [];
     updateCartUI();
-    // render... handled by listener
+    // render... processes via listener
     paymentModal.classList.add('hidden');
 
     if (method === 'cash') {
@@ -666,6 +669,55 @@ window.toggleGiveLater = function () {
         giveLaterAmount.value = '';
     }
 };
+
+// Pending Orders Logic (Created -> Paid)
+function renderPendingOrders(searchTerm = '') {
+    if (!pendingOrdersList) return;
+    pendingOrdersList.innerHTML = '';
+    const pending = orders.filter(o => o.status === 'pending');
+
+    // Update count
+    if (pendingCount) pendingCount.textContent = pending.length;
+
+    const filtered = pending.filter(o =>
+        o.id.toString().includes(searchTerm) ||
+        o.items.some(i => i.name.toLowerCase().includes(searchTerm))
+    );
+
+    if (filtered.length === 0) {
+        pendingOrdersList.innerHTML = `<div class="empty-msg"><p>No pending orders</p></div>`;
+        return;
+    }
+
+    filtered.forEach(order => {
+        const row = document.createElement('div');
+        row.className = 'order-list-item';
+
+        const itemsSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+
+        row.innerHTML = `
+            <div class="order-list-info">
+                <div style="font-weight:700">Order #${order.id.toString().slice(-4)} <span style="font-size:0.8em; font-weight:normal; color:#666">(${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY'})</span></div>
+                <div style="font-size:0.9rem; color: #666;">${itemsSummary}</div>
+                <div style="font-weight:600; color: var(--secondary-color);">Total: ₹${order.total}</div>
+            </div>
+        `;
+
+        if (order.paymentMethod === 'cash') {
+            row.innerHTML += `
+                <button class="pay-btn" onclick="openChangeCalculator(${order.id}, ${order.total})">
+                    Pay / Change <i class="fa-solid fa-calculator"></i>
+                </button>
+            `;
+        } else {
+            // Default GPay or undefined (assume GPay/standard)
+            row.innerHTML += `
+                <button class="mark-done-btn" onclick="sendToKitchen(${order.id})">Send to Kitchen <i class="fa-solid fa-fire-burner"></i></button>
+            `;
+        }
+        pendingOrdersList.appendChild(row);
+    });
+}
 
 // Pending Change List Logic
 function renderPendingChangeList() {
