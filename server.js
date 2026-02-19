@@ -80,6 +80,12 @@ io.on('connection', (socket) => {
         io.emit('update-orders', orders);
     });
 
+    socket.on('clear-history', () => {
+        history = [];
+        saveHistory();
+        io.emit('history-cleared');
+    });
+
     socket.on('get-history', () => {
         socket.emit('history-data', history);
     });

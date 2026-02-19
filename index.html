@@ -208,6 +208,54 @@
         </div>
     </div>
 
+    <!-- History Modal -->
+    <div id="history-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2>Order History</h2>
+                <button id="close-history-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="padding-bottom:0">
+                <!-- Stats Bar -->
+                <div id="history-stats" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+                    <div class="stat-card"
+                        style="flex:1; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:0.75rem; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:0.7rem; color:#16a34a; font-weight:600; text-transform:uppercase;">Total
+                            Sold</div>
+                        <div id="stat-total" style="font-size:1.3rem; font-weight:700; color:#15803d;">₹0</div>
+                    </div>
+                    <div class="stat-card"
+                        style="flex:1; background:#eff6ff; border:1px solid #bfdbfe; border-radius:0.75rem; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:0.7rem; color:#2563eb; font-weight:600; text-transform:uppercase;">Plates
+                            Sold</div>
+                        <div id="stat-plates" style="font-size:1.3rem; font-weight:700; color:#1d4ed8;">0</div>
+                    </div>
+                    <div class="stat-card"
+                        style="flex:1; background:#fdf4ff; border:1px solid #e9d5ff; border-radius:0.75rem; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:0.7rem; color:#9333ea; font-weight:600; text-transform:uppercase;">Momos
+                        </div>
+                        <div id="stat-momos" style="font-size:1.3rem; font-weight:700; color:#7e22ce;">0</div>
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                    <button id="export-history-btn" class="secondary-btn"
+                        style="flex:1; background:#6366f1; color:white; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="fa-solid fa-file-export"></i> Export CSV
+                    </button>
+                    <button id="clear-history-btn" class="secondary-btn"
+                        style="flex:1; background:#ef4444; color:white; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="fa-solid fa-trash"></i> Clear History
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding-top:0">
+                <div id="history-list" class="settings-list" style="max-height: 380px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>

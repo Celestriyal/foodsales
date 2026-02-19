@@ -521,7 +521,11 @@ window.completeOrder = function (id) {
     }
 };
 
-// History Functions
+// ── History ──────────────────────────────────────────────────────────────────
+
+// Cache for the current history data so export/clear can use it
+let currentHistory = [];
+
 function openHistory() {
     historyModal.classList.remove('hidden');
     historyList.innerHTML = '<div class="empty-msg"><p>Loading...</p></div>';
@@ -530,14 +534,46 @@ function openHistory() {
 
 socket.on('history-data', (data) => {
     if (!historyList) return;
+    currentHistory = data || [];
+    renderHistoryData(currentHistory);
+});
+
+function renderHistoryData(data) {
     historyList.innerHTML = '';
 
-    if (!data || data.length === 0) {
+    // ── Compute stats ─────────────────────────────────────────────────────────
+    let totalSold = 0;
+    let totalPlates = 0;   // excludes momos
+    let totalMomos = 0;    // momos only
+
+    data.forEach(order => {
+        totalSold += parseFloat(order.total) || 0;
+        if (order.items) {
+            order.items.forEach(item => {
+                const isMomos = item.name.toLowerCase().includes('momos');
+                if (isMomos) {
+                    totalMomos += item.quantity || 0;
+                } else {
+                    totalPlates += item.quantity || 0;
+                }
+            });
+        }
+    });
+
+    // Update stat cards
+    const statTotal = document.getElementById('stat-total');
+    const statPlates = document.getElementById('stat-plates');
+    const statMomos = document.getElementById('stat-momos');
+    if (statTotal) statTotal.textContent = `₹${totalSold.toFixed(2)}`;
+    if (statPlates) statPlates.textContent = totalPlates;
+    if (statMomos) statMomos.textContent = totalMomos;
+
+    // ── Render order rows ─────────────────────────────────────────────────────
+    if (data.length === 0) {
         historyList.innerHTML = '<div class="empty-msg"><p>No completed orders yet.</p></div>';
         return;
     }
 
-    // Show newest first
     [...data].reverse().forEach(order => {
         const date = order.completedAt
             ? new Date(order.completedAt).toLocaleString()
@@ -561,7 +597,63 @@ socket.on('history-data', (data) => {
         `;
         historyList.appendChild(row);
     });
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+async function exportHistoryCSV() {
+    if (currentHistory.length === 0) {
+        alert('No history to export.');
+        return;
+    }
+
+    let csv = 'Order#,Items,Total,Payment,Completed At\n';
+    currentHistory.forEach(order => {
+        const items = order.items
+            ? order.items.map(i => `${i.quantity}x ${i.name}`).join(' | ')
+            : '-';
+        const date = order.completedAt
+            ? new Date(order.completedAt).toLocaleString()
+            : '';
+        csv += `"${order.id.toString().slice(-4)}","${items}","${order.total}","${order.paymentMethod || 'gpay'}","${date}"\n`;
+    });
+
+    // Use File System Access API for native save dialog; fallback to download
+    try {
+        const fileHandle = await window.showSaveFilePicker({
+            suggestedName: `order_history_${new Date().toISOString().slice(0, 10)}.csv`,
+            types: [{ description: 'CSV File', accept: { 'text/csv': ['.csv'] } }]
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(csv);
+        await writable.close();
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            // Fallback: auto-download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `order_history_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    }
+}
+
+// ── Clear History ─────────────────────────────────────────────────────────────
+function clearHistory() {
+    if (!confirm(`Clear all ${currentHistory.length} completed orders from history? This cannot be undone.`)) return;
+    socket.emit('clear-history');
+}
+
+socket.on('history-cleared', () => {
+    currentHistory = [];
+    renderHistoryData([]);
 });
+
+// ── Wire up buttons ───────────────────────────────────────────────────────────
+document.getElementById('export-history-btn').addEventListener('click', exportHistoryCSV);
+document.getElementById('clear-history-btn').addEventListener('click', clearHistory);
 
 
 // Change Calculator Functions
