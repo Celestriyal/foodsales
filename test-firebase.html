@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase Connection Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+        }
+
+        #status {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+
+        .pending {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .error {
+            background: #fecaca;
+            color: #dc2626;
+            border: 1px solid #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Firebase Connection Test</h1>
+    <p>Opening this page attempts to write a test value to your database.</p>
+    <div id="status" class="pending">Initializing...</div>
+    <pre id="logs" style="background:#f3f4f6; padding:1rem; margin-top:1rem; overflow:auto;"></pre>
+
+    <script type="module">
+        import { db, ref, set, onValue } from './firebase-config.js';
+
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(msg) {
+            logsDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        try {
+            log('Starting Firebase Test...');
+
+            // 1. Try to Write
+            const testRef = ref(db, 'connection_test');
+            const timestamp = new Date().toISOString();
+
+            log(`Attempting to write to 'connection_test' at ${timestamp}...`);
+
+            set(testRef, {
+                status: 'connected',
+                last_checked: timestamp
+            }).then(() => {
+                log('✅ Write Successful! (Database is reachable)');
+                statusDiv.innerHTML = '<strong>Write Success!</strong><br>Waiting for Read verification...';
+                statusDiv.className = 'pending';
+            }).catch((error) => {
+                log('❌ Write Failed: ' + error.message);
+
+                if (error.message.includes('PERMISSION_DENIED')) {
+                    statusDiv.innerHTML = '<strong>❌ PERMISSION DENIED</strong><br>Your Database Rules are locked. Go to Firebase Console > Realtime Database > Rules and change ".read": false, ".write": false to <strong>true</strong>.';
+                } else if (error.code === 'PERMISSION_DENIED') {
+                    statusDiv.innerHTML = '<strong>❌ PERMISSION DENIED</strong><br>Check Database Rules in Console.';
+                } else {
+                    statusDiv.innerHTML = '<strong>❌ Error:</strong> ' + error.message;
+                }
+                statusDiv.className = 'error';
+            });
+
+            // 2. Try to Listen
+            onValue(testRef, (snapshot) => {
+                const val = snapshot.val();
+                log('✅ Read Successful! Value: ' + JSON.stringify(val));
+                if (val && val.status === 'connected') {
+                    statusDiv.innerHTML = '<strong>✅ SUCCESS!</strong><br>Firebase is working correctly.<br>Pass this test? Then your App Logic might be the issue.';
+                    statusDiv.className = 'success';
+                }
+            }, (error) => {
+                log('❌ Read Failed: ' + error.message);
+            });
+
+        } catch (e) {
+            log('❌ Critical Error: ' + e.message);
+            statusDiv.textContent = 'Critical Error: ' + e.message;
+            statusDiv.className = 'error';
+        }
+    </script>
+</body>
+
+</html>
