@@ -9,6 +9,7 @@ const path = require('path');
 
 const PORT = 8080;
 const DATA_FILE = path.join(__dirname, 'orders.json');
+const HISTORY_FILE = path.join(__dirname, 'history.json');
 
 app.use(express.static('.'));
 app.use(express.json());
@@ -20,6 +21,16 @@ if (fs.existsSync(DATA_FILE)) {
         orders = JSON.parse(fs.readFileSync(DATA_FILE));
     } catch (e) {
         console.error("Error loading orders:", e);
+    }
+}
+
+// Load history
+let history = [];
+if (fs.existsSync(HISTORY_FILE)) {
+    try {
+        history = JSON.parse(fs.readFileSync(HISTORY_FILE));
+    } catch (e) {
+        console.error("Error loading history:", e);
     }
 }
 
@@ -55,14 +66,25 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('delete-order', (id) => {
+    socket.on('complete-order', (id) => {
+        const order = orders.find(o => o.id === id);
+        if (order) {
+            // Archive to history
+            order.completedAt = new Date().toISOString();
+            history.push(order);
+            saveHistory();
+        }
+        // Remove from active orders
         orders = orders.filter(o => o.id !== id);
         saveOrders();
         io.emit('update-orders', orders);
     });
 
+    socket.on('get-history', () => {
+        socket.emit('history-data', history);
+    });
+
     socket.on('get-orders', () => {
-        // Client explicitly requests current orders (e.g. on page load)
         socket.emit('update-orders', orders);
     });
 
@@ -73,6 +95,10 @@ io.on('connection', (socket) => {
 
 function saveOrders() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(orders, null, 2));
+}
+
+function saveHistory() {
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
 }
 
 server.listen(PORT, () => {

@@ -516,7 +516,7 @@ window.completeOrder = function (id) {
     const order = orders.find(o => o.id === id);
     if (order) {
         if (confirm('Mark order as completed?')) {
-            socket.emit('delete-order', id);
+            socket.emit('complete-order', id); // server archives to history.json
         }
     }
 };
@@ -524,13 +524,44 @@ window.completeOrder = function (id) {
 // History Functions
 function openHistory() {
     historyModal.classList.remove('hidden');
-    renderHistory();
+    historyList.innerHTML = '<div class="empty-msg"><p>Loading...</p></div>';
+    socket.emit('get-history');
 }
 
-// History Stub for Offline
-async function renderHistory() {
-    historyList.innerHTML = '<div class="empty-msg">History not available in offline mode.</div>';
-}
+socket.on('history-data', (data) => {
+    if (!historyList) return;
+    historyList.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        historyList.innerHTML = '<div class="empty-msg"><p>No completed orders yet.</p></div>';
+        return;
+    }
+
+    // Show newest first
+    [...data].reverse().forEach(order => {
+        const date = order.completedAt
+            ? new Date(order.completedAt).toLocaleString()
+            : 'Unknown time';
+        const itemsSummary = order.items
+            ? order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')
+            : '-';
+        const row = document.createElement('div');
+        row.className = 'order-list-item';
+        row.innerHTML = `
+            <div class="order-list-info">
+                <div style="font-weight:700">Order #${order.id.toString().slice(-4)}
+                    <span style="font-size:0.8em; font-weight:normal; color:#666">
+                        (${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'GPAY'})
+                    </span>
+                </div>
+                <div style="font-size:0.85rem; color:#666">${itemsSummary}</div>
+                <div style="font-weight:600; color:var(--secondary-color)">₹${order.total}</div>
+                <div style="font-size:0.75rem; color:#999; margin-top:2px">${date}</div>
+            </div>
+        `;
+        historyList.appendChild(row);
+    });
+});
 
 
 // Change Calculator Functions
