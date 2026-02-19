@@ -719,6 +719,73 @@ function renderPendingOrders(searchTerm = '') {
     });
 }
 
+// Ongoing Orders Logic (Cooking -> Ready -> Completed)
+function renderOngoingOrders(searchTerm = '') {
+    if (!ongoingOrdersList) return;
+    ongoingOrdersList.innerHTML = '';
+    const ongoing = orders.filter(o => o.status === 'cooking' || o.status === 'ready');
+
+    // Sort: Ready first, then by ID (newest first? or oldest first?)
+    // Kitchen FIFO: Oldest first for cooking.
+    ongoing.sort((a, b) => {
+        if (a.status === 'ready' && b.status !== 'ready') return -1;
+        if (a.status !== 'ready' && b.status === 'ready') return 1;
+        return a.id - b.id;
+    });
+
+    if (ongoingCount) ongoingCount.textContent = ongoing.length;
+
+    const filtered = ongoing.filter(o =>
+        o.id.toString().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        ongoingOrdersList.innerHTML = `<div class="empty-msg"><p>No kitchen orders</p></div>`;
+        return;
+    }
+
+    filtered.forEach(order => {
+        const row = document.createElement('div');
+        row.className = 'order-list-item';
+        // Add specific border or bg if Ready
+        if (order.status === 'ready') {
+            row.style.borderLeft = '5px solid #10b981';
+            row.style.background = '#ecfdf5';
+        }
+
+        const itemsSummary = order.items.map(i => {
+            // Check if item is ready
+            const statusIcon = (i.status === 'ready') ? '<i class="fa-solid fa-check" style="color:#10b981"></i>' : '';
+            const statusStyle = (i.status === 'ready') ? 'color:#059669; text-decoration:line-through; opacity:0.7' : '';
+            return `<span style="${statusStyle}">${i.quantity}x ${i.name} ${statusIcon}</span>`;
+        }).join('<br>');
+
+        // Status Badge
+        let statusBadge = `<span class="status-badge status-cooking">Cooking...</span>`;
+        if (order.items.some(i => i.status === 'ready') && order.status !== 'ready') {
+            statusBadge = `<span class="status-badge status-cooking" style="background:#fef3c7; color:#d97706">Partially Ready</span>`;
+        }
+        let actionBtn = '';
+
+        if (order.status === 'ready') {
+            statusBadge = `<span class="status-badge status-ready"><i class="fa-solid fa-check"></i> Ready!</span>`;
+            actionBtn = `<button class="mark-done-btn" style="background:#10b981; margin-left:10px" onclick="completeOrder(${order.id})"><i class="fa-solid fa-check-double"></i></button>`;
+        }
+
+        row.innerHTML = `
+            <div class="order-list-info" style="flex:1">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <span style="font-weight:700">Order #${order.id.toString().slice(-4)}</span>
+                    ${statusBadge}
+                </div>
+                <div style="font-size:0.9rem; color: #666; margin-top:0.5rem; line-height:1.4">${itemsSummary}</div>
+            </div>
+            ${actionBtn}
+        `;
+        ongoingOrdersList.appendChild(row);
+    });
+}
+
 // Pending Change List Logic
 function renderPendingChangeList() {
     if (!pendingChangeList) return;
