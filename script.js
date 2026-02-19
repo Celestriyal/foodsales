@@ -84,7 +84,11 @@ function init() {
     const ordersRef = ref(db, 'orders');
     onValue(ordersRef, (snapshot) => {
         const data = snapshot.val();
-        orders = data ? Object.values(data) : [];
+        // Firebase converts arrays to objects ({0: ..., 1: ...}), so we must normalize
+        orders = data ? Object.values(data).map(order => ({
+            ...order,
+            items: order.items ? Object.values(order.items) : []
+        })) : [];
         renderPendingOrders();
         renderOngoingOrders();
         renderPendingChangeList();
