@@ -69,6 +69,15 @@ const historyList = document.getElementById('history-list');
 
 let currentOrderIdForPayment = null;
 
+// Socket listener registered immediately (before init) to avoid race condition on page load
+// The server emits 'update-orders' on connect — if the listener was inside init() it could miss it
+socket.on('update-orders', (data) => {
+    orders = data;
+    renderPendingOrders();
+    renderOngoingOrders();
+    renderPendingChangeList();
+});
+
 // Initialization
 function init() {
     loadMenu();
@@ -76,13 +85,9 @@ function init() {
     updateCartUI();
     setupEventListeners();
 
-    // Socket.io Listener
-    socket.on('update-orders', (data) => {
-        orders = data;
-        renderPendingOrders();
-        renderOngoingOrders();
-        renderPendingChangeList();
-    });
+    // Explicitly request current orders from server after everything is set up
+    // This guarantees we get data even if socket connected before listener was ready
+    socket.emit('get-orders');
 }
 
 // Load Menu from LocalStorage or use Default
@@ -470,8 +475,13 @@ window.confirmPaymentMethod = function (method) {
         timestamp: new Date().toISOString()
     };
 
-    // Save to Server
+    // Add to local orders array immediately
     orders.push(newOrder);
+
+    // Re-render the pending list RIGHT NOW — don't wait for socket roundtrip
+    renderPendingOrders();
+
+    // Also sync to server for other devices (kitchen/customer screens)
     socket.emit('new-order', newOrder);
 
     cart = [];
@@ -492,6 +502,12 @@ window.sendToKitchen = function (id) {
         orders[orderIndex].status = 'cooking';
         orders[orderIndex].items.forEach(item => item.status = 'cooking');
 
+        // Render immediately — don't wait for socket roundtrip
+        renderPendingOrders();
+        renderOngoingOrders();
+        renderPendingChangeList(); // update pending-change badge if applicable
+
+        // Sync to server for kitchen/customer screens
         socket.emit('update-order', orders[orderIndex]);
     }
 };

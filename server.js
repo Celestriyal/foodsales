@@ -61,6 +61,11 @@ io.on('connection', (socket) => {
         io.emit('update-orders', orders);
     });
 
+    socket.on('get-orders', () => {
+        // Client explicitly requests current orders (e.g. on page load)
+        socket.emit('update-orders', orders);
+    });
+
     socket.on('disconnect', () => {
         console.log('user disconnected');
     });
