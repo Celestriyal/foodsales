@@ -5,13 +5,14 @@ import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.g
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAHbAp5Otv-Lsd9usDf5d4_2lj5vfaCqsg",
+    authDomain: "foodsales-7b546.firebaseapp.com",
+    databaseURL: "https://foodsales-7b546-default-rtdb.firebaseio.com",
+    projectId: "foodsales-7b546",
+    storageBucket: "foodsales-7b546.firebasestorage.app",
+    messagingSenderId: "244545553361",
+    appId: "1:244545553361:web:09fb4e1e23cdca5d9c16f0",
+    measurementId: "G-X7DXP0DSYM"
 };
 
 // Initialize Firebase
