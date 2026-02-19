@@ -1,3 +1,5 @@
+import { db, ref, onValue } from './firebase-config.js';
+
 // DOM Elements
 const ordersGrid = document.getElementById('customer-orders-grid');
 
@@ -6,32 +8,15 @@ let orders = [];
 
 // Init
 function init() {
-    loadOrders();
-    renderOrders();
-
-    // Listen for changes from POS tab
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'oderwall_orders') {
-            loadOrders();
-            renderOrders();
-        }
-    });
-
-    // Poll for orders every 2 seconds (Fallback for storage event issues)
-    setInterval(() => {
-        loadOrders();
+    // Firebase Listener
+    const ordersRef = ref(db, 'orders');
+    onValue(ordersRef, (snapshot) => {
+        const data = snapshot.val();
+        orders = data ? Object.values(data) : [];
         renderOrders();
-    }, 2000);
+    });
 }
-
-function loadOrders() {
-    const storedOrders = localStorage.getItem('oderwall_orders');
-    if (storedOrders) {
-        orders = JSON.parse(storedOrders);
-    } else {
-        orders = [];
-    }
-}
+// loadOrders removed
 
 function renderOrders() {
     ordersGrid.innerHTML = '';

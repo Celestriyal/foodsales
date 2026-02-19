@@ -1,3 +1,5 @@
+import { db, ref, onValue, update } from './firebase-config.js';
+
 // DOM Elements
 const ordersGrid = document.getElementById('kitchen-orders-grid');
 const summaryGrid = document.getElementById('kitchen-summary-grid');
@@ -8,21 +10,16 @@ let orders = [];
 
 // Init
 function init() {
-    loadOrders();
-    renderOrders();
-    renderSummary(); // Initial render
     startClock();
 
-    // Listen for changes
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'oderwall_orders') {
-            loadOrders();
-            renderOrders();
-            renderSummary(); // Update summary
-        }
+    // Firebase Listener
+    const ordersRef = ref(db, 'orders');
+    onValue(ordersRef, (snapshot) => {
+        const data = snapshot.val();
+        orders = data ? Object.values(data) : [];
+        renderOrders();
+        renderSummary();
     });
-
-    // Re-attach swipe listeners on render? No, handled in renderOrders
 }
 
 function startClock() {
@@ -30,27 +27,10 @@ function startClock() {
         const now = new Date();
         clockElement.textContent = now.toLocaleTimeString();
     }, 1000);
-
-    // Poll for orders every 2 seconds (Fallback for storage event issues)
-    setInterval(() => {
-        loadOrders();
-        renderOrders();
-        renderSummary(); // Update summary
-    }, 2000);
 }
 
-function loadOrders() {
-    const storedOrders = localStorage.getItem('oderwall_orders');
-    if (storedOrders) {
-        orders = JSON.parse(storedOrders);
-    } else {
-        orders = [];
-    }
-}
+// loadOrders and saveOrders removed - handled by socket
 
-function saveOrders() {
-    localStorage.setItem('oderwall_orders', JSON.stringify(orders));
-}
 
 function renderSummary() {
     if (!summaryGrid) return;
@@ -254,36 +234,37 @@ window.handleMouseDown = function (e, orderId, itemIndex) {
 
 
 window.markItemReady = function (orderId, itemIndex) {
+    const updates = {};
+    updates[`orders/${orderId}/items/${itemIndex}/status`] = 'ready';
+
+    // Check if other items ready?
+    // We need current state.
     const order = orders.find(o => o.id === orderId);
     if (order) {
-        if (!order.items[itemIndex].status) order.items[itemIndex].status = 'pending';
-        order.items[itemIndex].status = 'ready';
-
-        // Check if all items are ready
-        const allReady = order.items.every(i => i.status === 'ready');
-        if (allReady) {
-            order.status = 'ready';
+        // Optimistic check: if all *other* items are ready (or this is the last one)
+        const allOthersReady = order.items.every((item, idx) => idx === itemIndex || item.status === 'ready');
+        if (allOthersReady) {
+            updates[`orders/${orderId}/status`] = 'ready';
         }
-
-        saveOrders();
-        renderOrders();
-        renderSummary();
     }
+
+    update(ref(db), updates);
 };
 
 window.markOrderReady = function (id) {
-    const orderIndex = orders.findIndex(o => o.id === id);
-    if (orderIndex > -1) {
-        orders[orderIndex].status = 'ready';
-        // Set all items to ready
-        if (orders[orderIndex].items) {
-            orders[orderIndex].items.forEach(i => i.status = 'ready');
-        }
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
 
-        saveOrders();
-        renderOrders();
-        renderSummary(); // Update summary
+    const updates = {};
+    updates[`orders/${id}/status`] = 'ready';
+
+    if (order.items) {
+        order.items.forEach((item, index) => {
+            updates[`orders/${id}/items/${index}/status`] = 'ready';
+        });
     }
+
+    update(ref(db), updates);
 };
 
 init();

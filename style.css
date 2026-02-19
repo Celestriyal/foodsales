@@ -541,6 +541,49 @@ main {
     font-family: var(--font-family);
 }
 
+.setting-row-inputs {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.delete-btn {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.delete-btn:hover {
+    background: #fecaca;
+}
+
+.add-item-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background: #e0e7ff;
+    color: var(--primary-color);
+    border: 1px dashed var(--primary-color);
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.add-item-btn:hover {
+    background: #c7d2fe;
+}
+
 .modal-footer {
     padding: 1.5rem;
     border-top: 1px solid var(--border-color);

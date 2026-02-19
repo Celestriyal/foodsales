@@ -1,3 +1,7 @@
+import { db, ref, set, update, onValue } from './firebase-config.js';
+
+const MENU_VERSION = '1.1'; // Increment this to force menu update for users
+
 const defaultMenu = [
     { id: 1, name: 'Veg Atho', price: 110, category: 'Main' },
     { id: 2, name: 'Egg Atho', price: 130, category: 'Main' },
@@ -7,7 +11,8 @@ const defaultMenu = [
     { id: 6, name: 'Chicken Banga', price: 130, category: 'Main' },
     { id: 7, name: 'Paneer Momos', price: 100, category: 'Starter' },
     { id: 8, name: 'Chicken Momos', price: 120, category: 'Starter' },
-    { id: 9, name: 'Banana stem soup', price: 60, category: 'Soup' }
+    { id: 9, name: 'Banana stem soup', price: 60, category: 'Soup' },
+    { id: 10, name: 'Water Bottle', price: 20, category: 'Extras' }
 ];
 
 // State
@@ -61,47 +66,59 @@ let currentOrderIdForPayment = null;
 // Initialization
 function init() {
     loadMenu();
-    loadOrders();
+    // loadOrders(); // Removed: Handled by Firebase onValue
     renderMenu();
     updateCartUI();
-    renderPendingOrders();
-    renderOngoingOrders();
-    renderPendingChangeList(); // Init badge
+    // renderPendingOrders(); // Will be triggered by Firebase callback
+    // renderOngoingOrders();
+    // renderPendingChangeList();
     setupEventListeners();
 
-    // Listen for storage updates (kitchen sync)
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'oderwall_orders') {
-            loadOrders();
-            renderPendingOrders();
-            renderOngoingOrders();
-            renderPendingChangeList(); // Update badge
-        }
+    // Firebase Listener
+    const ordersRef = ref(db, 'orders');
+    onValue(ordersRef, (snapshot) => {
+        const data = snapshot.val();
+        orders = data ? Object.values(data) : [];
+        renderPendingOrders();
+        renderOngoingOrders();
+        renderPendingChangeList();
     });
 }
 
 // Load Menu from LocalStorage or use Default
 function loadMenu() {
+    const storedVersion = localStorage.getItem('oderwall_menu_version');
     const storedMenu = localStorage.getItem('oderwall_menu');
-    if (storedMenu) {
+
+    // Force update if version mismatch
+    if (storedVersion !== MENU_VERSION) {
+        console.log(`Menu version mismatch. Updating from ${storedVersion} to ${MENU_VERSION}`);
+        menu = JSON.parse(JSON.stringify(defaultMenu)); // Deep copy
+        saveMenu();
+        localStorage.setItem('oderwall_menu_version', MENU_VERSION);
+    } else if (storedMenu) {
         menu = JSON.parse(storedMenu);
     } else {
         menu = JSON.parse(JSON.stringify(defaultMenu)); // Deep copy
         saveMenu();
+        localStorage.setItem('oderwall_menu_version', MENU_VERSION);
     }
 }
 
+// Replaces loadOrders (unused now)
 function loadOrders() {
-    const storedOrders = localStorage.getItem('oderwall_orders');
-    if (storedOrders) {
-        orders = JSON.parse(storedOrders);
-    } else {
-        orders = [];
-    }
+    // Legacy support or placeholder
 }
 
+// Modified saveOrders to sync with Firebase
 function saveOrders() {
-    localStorage.setItem('oderwall_orders', JSON.stringify(orders));
+    // Convert array to object keyed by ID for direct addressing if needed,
+    // but simple 'orders' object with IDs as keys is easiest.
+    const updates = {};
+    orders.forEach(order => {
+        updates[order.id] = order;
+    });
+    set(ref(db, 'orders'), updates);
 }
 
 function saveMenu() {
@@ -224,22 +241,91 @@ function renderSettingsList() {
     // UPI ID Setting
     const upiRow = document.createElement('div');
     upiRow.className = 'setting-item';
-    const currentUpi = localStorage.getItem('oderwall_upi_id') || '';
+
+    // Default UPI Logic
+    let currentUpi = localStorage.getItem('oderwall_upi_id');
+    if (!currentUpi) {
+        currentUpi = 'gpay-12196007337@okbizaxis';
+        localStorage.setItem('oderwall_upi_id', currentUpi);
+    }
+
     upiRow.innerHTML = `
         <label>UPI ID (for QR)</label>
-        <input type="text" id="setting-upi-id" value="${currentUpi}" placeholder="ashfaq072025@okicici" style="width: 250px; text-align: left;">
+        <input type="text" id="setting-upi-id" value="${currentUpi}" placeholder="gpay-12196007337@okbizaxis" style="width: 250px; text-align: left;">
     `;
     settingsList.appendChild(upiRow);
 
-    // Menu Prices
-    menu.forEach(item => {
+    // Menu Items Header
+    const headerRow = document.createElement('div');
+    headerRow.style.display = 'flex';
+    headerRow.style.justifyContent = 'space-between';
+    headerRow.style.padding = '0.5rem 0';
+    headerRow.style.fontWeight = 'bold';
+    headerRow.style.borderBottom = '1px solid #eee';
+    headerRow.style.marginBottom = '0.5rem';
+    headerRow.innerHTML = `
+        <span style="flex:2">Item Name</span>
+        <span style="flex:1; text-align:right; margin-right: 40px;">Price</span>
+    `;
+    settingsList.appendChild(headerRow);
+
+    // Menu Prices & Management
+    menu.forEach((item, index) => {
         const row = document.createElement('div');
         row.className = 'setting-item';
         row.innerHTML = `
-            <label>${item.name}</label>
-            <input type="number" id="price-${item.id}" value="${item.price}" min="0">
+            <input type="text" id="name-${index}" value="${item.name}" style="flex:2; text-align:left; margin-right:0.5rem;">
+            <div class="setting-row-inputs">
+                <input type="number" id="price-${index}" value="${item.price}" min="0" style="width:80px">
+                <button class="delete-btn" onclick="removeMenuItem(${index})">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
         `;
         settingsList.appendChild(row);
+    });
+
+    // Add Item Button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-item-btn';
+    addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add New Item';
+    addBtn.onclick = addMenuItem;
+    settingsList.appendChild(addBtn);
+}
+
+window.addMenuItem = function () {
+    captureCurrentSettings(); // Save current inputs to state first
+    const newItem = {
+        id: Date.now(),
+        name: 'New Item',
+        price: 0,
+        category: 'Main' // Default category
+    };
+    menu.push(newItem);
+    renderSettingsList(); // Re-render with new item
+
+    // Scroll to bottom
+    setTimeout(() => {
+        const inputs = settingsList.querySelectorAll('input[type="text"]');
+        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 100);
+};
+
+window.removeMenuItem = function (index) {
+    if (confirm('Are you sure you want to delete this item?')) {
+        captureCurrentSettings(); // Save current inputs to state first
+        menu.splice(index, 1);
+        renderSettingsList();
+    }
+};
+
+function captureCurrentSettings() {
+    // Helper to sync inputs to state before re-rendering
+    menu.forEach((item, index) => {
+        const nameInput = document.getElementById(`name-${index}`);
+        const priceInput = document.getElementById(`price-${index}`);
+        if (nameInput) item.name = nameInput.value;
+        if (priceInput) item.price = parseFloat(priceInput.value) || 0;
     });
 }
 
@@ -250,23 +336,14 @@ function saveSettings() {
         localStorage.setItem('oderwall_upi_id', upiInput.value.trim());
     }
 
-    let hasChanges = false;
-    menu.forEach(item => {
-        const input = document.getElementById(`price-${item.id}`);
-        if (input) {
-            const newPrice = parseFloat(input.value);
-            if (!isNaN(newPrice) && newPrice !== item.price) {
-                item.price = newPrice;
-                hasChanges = true;
-            }
-        }
-    });
+    // Capture final state from inputs
+    captureCurrentSettings();
 
-    if (hasChanges) {
-        saveMenu();
-        renderMenu(); // Re-render menu with new prices
-        updateCartPrices();
-    }
+    // Remove empty items? Optional. For now, we trust the delete button.
+
+    saveMenu();
+    renderMenu(); // Re-render menu grid
+    updateCartPrices();
     closeSettings();
 }
 
@@ -275,6 +352,7 @@ function updateCartPrices() {
         const menuItem = menu.find(m => m.id === cartItem.id);
         if (menuItem) {
             cartItem.price = menuItem.price;
+            cartItem.name = menuItem.name; // Update name too if changed
         }
     });
     updateCartUI();
