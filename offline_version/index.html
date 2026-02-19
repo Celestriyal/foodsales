@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oderwall POS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-utensils"></i>
+                <h1>Oderwall</h1>
+            </div>
+            <div class="search-bar">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="order-search" placeholder="Search Order #...">
+            </div>
+            <div class="header-controls" style="display:flex; gap:10px;">
+                <button id="pending-change-btn" class="icon-btn" title="Pending Changes" style="position:relative;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span id="pending-change-badge" class="badge"
+                        style="display:none; position:absolute; top:-5px; right:-5px; font-size:0.7rem; padding:0.2rem 0.5rem; background: #ef4444;">0</span>
+                </button>
+                <button id="history-btn" class="icon-btn" title="Order History">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </button>
+                <button id="settings-btn" class="icon-btn" title="Settings">
+                    <i class="fa-solid fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Menu Section (Takes remaining space) -->
+            <section class="menu-section">
+                <h2>Menu</h2>
+                <div id="menu-grid" class="menu-grid">
+                    <!-- Menu items will be injected here via JS -->
+                </div>
+            </section>
+
+            <!-- Info Sidebar Right (Cart Left, Tracking Right) -->
+            <aside class="sidebar-right">
+                <!-- Cart Section -->
+                <div class="cart-section">
+                    <div class="cart-header">
+                        <h2>Current Order</h2>
+                        <div class="cart-controls">
+                            <button id="clear-cart-btn" class="text-btn" title="Clear Order">Clear</button>
+                            <span id="cart-count" class="badge">0</span>
+                        </div>
+                    </div>
+                    <div id="cart-items" class="cart-items">
+                        <div class="empty-cart-msg">
+                            <i class="fa-solid fa-basket-shopping"></i>
+                            <p>Your cart is empty</p>
+                        </div>
+                    </div>
+                    <div class="cart-footer">
+                        <div class="total-row">
+                            <span>Total</span>
+                            <span id="cart-total">₹0.00</span>
+                        </div>
+                        <button id="checkout-btn" class="checkout-btn">
+                            Place Order <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tracking Group (Pending + Kitchen) -->
+                <div class="tracking-group">
+                    <!-- Pending Orders Section -->
+                    <div class="pending-section">
+                        <div class="pending-header">
+                            <h2>Pending</h2>
+                            <span id="pending-count" class="badge">0</span>
+                        </div>
+                        <div id="pending-orders-list" class="pending-items">
+                            <div class="empty-msg">
+                                <p>No active orders</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="tracking-divider"></div>
+
+                    <!-- Ongoing Orders Section -->
+                    <div class="ongoing-section">
+                        <div class="ongoing-header">
+                            <h2>Kitchen</h2>
+                            <span id="ongoing-count" class="badge">0</span>
+                        </div>
+                        <div id="ongoing-orders-list" class="ongoing-items">
+                            <div class="empty-msg">
+                                <p>No cooking orders</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Pending Changes Modal -->
+    <div id="pending-change-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Pending Change Orders</h2>
+                <button id="close-pending-change-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="pending-change-list" class="settings-list" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Items injected here -->
+                    <div class="empty-msg">No pending changes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Prices</h2>
+                <button id="close-settings-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="settings-list" class="settings-list">
+                    <!-- Settings items injected here -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                <button id="connect-db-btn" class="secondary-btn" style="background-color: #6366f1; color: white;">
+                    <i class="fa-solid fa-database"></i> Connect Database
+                </button>
+                <button id="save-settings-btn" class="primary-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Method Modal -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Payment Method</h2>
+                <button id="close-payment-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="payment-options">
+                    <button class="payment-btn" onclick="confirmPaymentMethod('gpay')">
+                        <i class="fa-brands fa-google-pay"></i> GPay / UPI
+                    </button>
+                    <button class="payment-btn" onclick="confirmPaymentMethod('cash')">
+                        <i class="fa-solid fa-money-bill-wave"></i> Cash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Calculator Modal -->
+    <div id="change-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cash Payment</h2>
+                <button id="close-change-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="change-calc-row">
+                    <label>Total Amount:</label>
+                    <span id="calc-total" class="calc-value">₹0</span>
+                </div>
+                <div class="change-calc-row">
+                    <label>Amount Given:</label>
+                    <input type="number" id="calc-given" placeholder="Enter Amount" oninput="calculateChange()">
+                </div>
+                <div class="change-calc-row">
+                    <label>Change to Return:</label>
+                    <span id="calc-change" class="calc-value highlight">₹0</span>
+                </div>
+
+                <!-- New Option: Give Change Later -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" id="give-later-check" onchange="toggleGiveLater()">
+                        <span style="font-weight:600; font-size: 1rem;">Give Change Later?</span>
+                    </label>
+                    <div id="give-later-input-container" style="display:none; margin-top:0.5rem;">
+                        <input type="number" id="give-later-amount" placeholder="Pending Amount"
+                            style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:0.5rem; font-size: 1.2rem;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-cash-btn" class="primary-btn">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
